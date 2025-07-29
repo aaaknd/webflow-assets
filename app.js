@@ -1,8 +1,8 @@
-// app.js — Compatible with Three.js r128+
+// app.js — Fixed sizing and visibility issues
 class GlassLogoApp {
   constructor(container = document.body) {
     this.container = container;
-    this.mouseNDC = new THREE.Vector2();
+    this.mouseNDC = new THREE.Vector2(0, 0); // Initialize at center
     this._setupRenderer();
     this._setupScene();
     this._setupListeners();
@@ -26,8 +26,17 @@ class GlassLogoApp {
     }
     
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setClearColor(0x000000, 0); // Transparent background
+    
+    // Set initial size
+    const { clientWidth: w, clientHeight: h } = this.container;
+    this.renderer.setSize(w, h, false);
     
     // Append canvas to container
+    this.renderer.domElement.style.cssText = `
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 100;
+    `;
     this.container.appendChild(this.renderer.domElement);
   }
 
@@ -35,9 +44,9 @@ class GlassLogoApp {
     const { clientWidth: w, clientHeight: h } = this.container;
     this.scene = new THREE.Scene();
 
-    // Camera
-    this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10);
-    this.camera.position.z = 2;
+    // Camera - adjusted for better view
+    this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 10);
+    this.camera.position.z = 3; // Moved camera back
 
     // Environment for refraction
     this.pmremGen = new THREE.PMREMGenerator(this.renderer);
@@ -46,11 +55,15 @@ class GlassLogoApp {
     });
     this.envCam = new THREE.CubeCamera(0.1, 10, this.cubeTarget);
 
-    // Lighting
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dir = new THREE.DirectionalLight(0xffffff, 1);
-    dir.position.set(5, 5, 5);
-    this.scene.add(dir);
+    // Stronger lighting for better visibility
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dir1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    dir1.position.set(5, 5, 5);
+    this.scene.add(dir1);
+    
+    const dir2 = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir2.position.set(-5, -5, 5);
+    this.scene.add(dir2);
 
     // Create star mesh
     this.star = this._createStarMesh();
@@ -79,13 +92,13 @@ class GlassLogoApp {
     }
     starShape.closePath();
 
-    // Extrude geometry
+    // Extrude geometry - reduced depth for subtlety
     const geo = new THREE.ExtrudeGeometry(starShape, {
-      depth: 0.35,
+      depth: 0.2,
       bevelEnabled: true,
-      bevelThickness: 0.18,
-      bevelSize: 0.02,
-      bevelSegments: 8
+      bevelThickness: 0.08,
+      bevelSize: 0.01,
+      bevelSegments: 6
     });
     geo.center();
 
@@ -95,32 +108,34 @@ class GlassLogoApp {
     for (let i = 0; i < posAttr.count; i++) {
       v.fromBufferAttribute(posAttr, i);
       const dist = Math.sqrt(v.x * v.x + v.y * v.y);
-      v.z += (1 - dist) * 0.25;
+      v.z += (1 - dist) * 0.15; // Reduced bulge
       posAttr.setXYZ(i, v.x, v.y, v.z);
     }
     geo.computeVertexNormals();
 
-    // Glass material - NO THICKNESS for r128 compatibility!
+    // Enhanced glass material for better visibility
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       metalness: 0,
-      roughness: 0,
-      transmission: 1,
-      ior: 1.45,
-      envMapIntensity: 1.1,
+      roughness: 0.05, // Slight roughness for visibility
+      transmission: 0.9, // Slightly less transparent
+      ior: 1.5,
+      envMapIntensity: 1.5, // Stronger reflections
       clearcoat: 1,
-      clearcoatRoughness: 0.05
-      // thickness: 0.4, // REMOVED - not supported in r128
+      clearcoatRoughness: 0.02,
+      transparent: true,
+      opacity: 0.8
     });
 
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.scale.setScalar(0.33);
+    mesh.scale.setScalar(0.15); // MUCH smaller scale - was 0.33
     return mesh;
   }
 
   _setupListeners() {
     window.addEventListener('pointermove', (e) => {
       const rect = this.container.getBoundingClientRect();
+      // Normalize mouse position to -1 to +1 range
       this.mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       this.mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     });
@@ -139,11 +154,15 @@ class GlassLogoApp {
     requestAnimationFrame(() => this._animate());
 
     // Gentle rotation
-    this.star.rotation.x += 0.005;
-    this.star.rotation.y += 0.01;
+    this.star.rotation.x += 0.002; // Slower rotation
+    this.star.rotation.y += 0.005;
 
-    // Follow cursor
-    this.star.position.set(this.mouseNDC.x, this.mouseNDC.y, 0);
+    // Follow cursor - scale down movement for cursor-like behavior
+    this.star.position.set(
+      this.mouseNDC.x * 0.5, // Reduced movement scale
+      this.mouseNDC.y * 0.5,
+      0
+    );
 
     // Update environment for refraction
     this.star.visible = false;
