@@ -1,0 +1,52 @@
+<!-- DEBUG SCRIPT - Add this temporarily to check Three.js version -->
+<script>
+// Add this to your Webflow custom code to debug Three.js version
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('=== DEBUGGING THREE.JS ===');
+
+  if (typeof THREE === 'undefined') {
+    console.error('❌ THREE is not defined! Three.js not loaded.');
+    return;
+  }
+
+  const version = THREE.REVISION || 'Unknown';
+  console.log('Three.js version:', version);
+
+  // Test MeshPhysicalMaterial properties
+  try {
+    const testMaterial = new THREE.MeshPhysicalMaterial();
+    const hasTransmission = 'transmission' in testMaterial;
+    const hasThickness = 'thickness' in testMaterial;
+
+    console.log('✅ MeshPhysicalMaterial created successfully');
+    console.log('Supports transmission:', hasTransmission);
+    console.log('Supports thickness:', hasThickness);
+
+    if (hasThickness) {
+      console.log('🎉 Your Three.js version supports the thickness property!');
+    } else {
+      console.log('⚠️  Your Three.js version does NOT support thickness (need r137+)');
+    }
+
+    // Test setting properties
+    try {
+      testMaterial.transmission = 1;
+      console.log('✅ transmission property set successfully');
+    } catch (e) {
+      console.error('❌ transmission property failed:', e.message);
+    }
+
+    try {
+      testMaterial.thickness = 0.4;
+      console.log('✅ thickness property set successfully');
+    } catch (e) {
+      console.error('❌ thickness property failed:', e.message);
+    }
+
+  } catch (error) {
+    console.error('❌ Error creating MeshPhysicalMaterial:', error.message);
+  }
+
+  console.log('=== END DEBUG ===');
+});
+</script>
